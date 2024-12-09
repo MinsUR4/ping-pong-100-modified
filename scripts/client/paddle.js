@@ -8,44 +8,34 @@ const createPaddle = function(game, socket, options) {
 
   // add mouse controls if this paddle is the one we (the player) are to control
   if (options.isClient) {
-    let paddleY = options.y; // Initial paddle position
-    let isLocked = false; // Track whether the mouse is "locked" to the paddle
-
-    // Throttle parameters
-    const throttleDelay = 50;
+    let startY = 0;
+    let lastSentY = options.y; // Initialize the last sent position
+    const throttleDelay = 50; // Delay in milliseconds
     let lastMoveTime = 0;
 
-    // Mouse lock logic for moving the paddle smoothly without holding the mouse button
-    game.addEventListener('mousemove', function(event) {
-      // Only move paddle if mouse is within the game area and is "locked"
-      if (isLocked) {
-        const maxY = game.offsetHeight - paddle.offsetHeight;
-        const mouseY = event.clientY;
-        const newY = Math.max(0, Math.min(mouseY, maxY)); // Clamping the paddle position
+    game.addEventListener('mousemove', function movePaddle(event) {
+      const newY = event.clientY - startY;
+      const maxY = game.offsetHeight - paddle.offsetHeight;
+      const boundedY = Math.max(0, Math.min(newY, maxY)); // Clamp to the game bounds
+      paddle.style.top = `${boundedY}px`;
 
-        paddle.style.top = `${newY}px`;
+      if (boundedY === 0) {
+        startY = event.clientY;
+      } else if (boundedY === maxY) {
+        startY = event.clientY - maxY;
+      }
 
-        // Send position to the server with throttling
-        const percent = (newY / game.offsetHeight) * 100;
+      const percent = (boundedY / game.offsetHeight) * 100;
 
-        const now = Date.now();
-        if (now - lastMoveTime >= throttleDelay) {
+      // Throttle the sending of paddle movement to the server
+      const now = Date.now();
+      if (now - lastMoveTime >= throttleDelay) {
+        if (Math.abs(lastSentY - percent) >= 0.5) { // Send if the position changed significantly
           socket.send({ type: 'movePlayer', y: percent });
+          lastSentY = percent;
           lastMoveTime = now;
         }
       }
-    });
-
-    // Start "locking" the paddle to mouse when the player moves the mouse over it
-    paddle.addEventListener('mouseenter', function() {
-      isLocked = true;
-      game.style.cursor = 'grab'; // Change cursor to indicate locked state
-    });
-
-    // Stop locking the paddle when mouse leaves the paddle area
-    paddle.addEventListener('mouseleave', function() {
-      isLocked = false;
-      game.style.cursor = 'default'; // Reset cursor when leaving
     });
   }
 
