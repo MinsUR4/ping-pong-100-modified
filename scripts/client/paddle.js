@@ -11,7 +11,7 @@ const createPaddle = function(game, socket, options) {
     let paddleY = options.y; // Initial paddle position
     let isLocked = false; // Track whether the mouse is "locked" to the paddle
 
-    // Throttle parameters
+    // Throttle parameters for mouse movement
     const throttleDelay = 50;
     let lastMoveTime = 0;
 
@@ -47,6 +47,35 @@ const createPaddle = function(game, socket, options) {
       isLocked = false;
       game.style.cursor = 'default'; // Reset cursor when leaving
     });
+
+    // Keyboard controls for paddle movement (Arrow keys and W/S keys)
+    const moveSpeed = 2; // Adjust this for faster/slower movement
+    const movePaddleWithKeys = function(event) {
+      const maxY = game.offsetHeight - paddle.offsetHeight;
+      const currentTop = parseFloat(paddle.style.top);
+
+      // Move up (W or ArrowUp)
+      if (event.key === 'ArrowUp' || event.key === 'w') {
+        paddleY = Math.max(0, currentTop - moveSpeed);
+      }
+      // Move down (S or ArrowDown)
+      if (event.key === 'ArrowDown' || event.key === 's') {
+        paddleY = Math.min(maxY, currentTop + moveSpeed);
+      }
+
+      paddle.style.top = `${paddleY}px`;
+
+      // Send position to the server with throttling
+      const percent = (paddleY / game.offsetHeight) * 100;
+      const now = Date.now();
+      if (now - lastMoveTime >= throttleDelay) {
+        socket.send({ type: 'movePlayer', y: percent });
+        lastMoveTime = now;
+      }
+    };
+
+    // Listen for keyboard events to move paddle
+    window.addEventListener('keydown', movePaddleWithKeys);
   }
 
   return paddle;
