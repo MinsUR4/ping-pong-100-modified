@@ -13,6 +13,7 @@ const createPaddle = function(game, socket, options) {
     const throttleDelay = 50; // Delay in milliseconds
     let lastMoveTime = 0;
 
+    // Mouse movement control
     game.addEventListener('mousemove', function movePaddle(event) {
       const newY = event.clientY - startY;
       const maxY = game.offsetHeight - paddle.offsetHeight;
@@ -35,6 +36,39 @@ const createPaddle = function(game, socket, options) {
           lastSentY = percent;
           lastMoveTime = now;
         }
+      }
+    });
+
+    // Keyboard controls (W, S, and Arrow keys)
+    let keyThrottleDelay = 100; // Delay between key movements
+    let lastKeyPressTime = 0;
+
+    const movePaddleWithKeys = (direction) => {
+      const currentTime = Date.now();
+      if (currentTime - lastKeyPressTime < keyThrottleDelay) return; // Throttle keypress actions
+
+      const maxY = game.offsetHeight - paddle.offsetHeight;
+      let currentTop = parseFloat(paddle.style.top);
+      if (direction === 'down') {
+        currentTop = Math.min(currentTop + 10, maxY); // Move down
+      } else if (direction === 'up') {
+        currentTop = Math.max(currentTop - 10, 0); // Move up
+      }
+
+      paddle.style.top = `${currentTop}px`;
+
+      const percent = (currentTop / game.offsetHeight) * 100;
+      socket.send({ type: 'movePlayer', y: percent });
+
+      lastKeyPressTime = currentTime;
+    };
+
+    // Listen for keydown events
+    document.addEventListener('keydown', (event) => {
+      if (event.key === 'ArrowDown' || event.key === 's') {
+        movePaddleWithKeys('down');
+      } else if (event.key === 'ArrowUp' || event.key === 'w') {
+        movePaddleWithKeys('up');
       }
     });
   }
