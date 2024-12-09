@@ -50,9 +50,9 @@ const createPaddle = function(game, socket, options) {
       const maxY = game.offsetHeight - paddle.offsetHeight;
       let currentTop = parseFloat(paddle.style.top);
       if (direction === 'down') {
-        currentTop = Math.min(currentTop + 10, maxY); // Move down
+        currentTop = Math.min(currentTop + 30, maxY); // Move down
       } else if (direction === 'up') {
-        currentTop = Math.max(currentTop - 10, 0); // Move up
+        currentTop = Math.max(currentTop - 30, 0); // Move up
       }
 
       paddle.style.top = `${currentTop}px`;
