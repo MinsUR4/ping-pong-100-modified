@@ -1,8 +1,9 @@
+// TODO: move these inside startGame (here for now for console debugging)
 let paddles = {};
 let player; // ourself/client avatar
 
 (function startGame() {
-  const ws = new WebSocket('ws://resilient-synonymous-hat.glitch.me/');
+  const ws = new WebSocket('wss://resilient-synonymous-hat.glitch.me/');
   const game = document.querySelector('#game');
   const scoreA = document.querySelector('#a.score');
   const scoreB = document.querySelector('#b.score');
@@ -12,7 +13,7 @@ let player; // ourself/client avatar
   const socket = {
     send(message) {
       // append client id to all outgoing messages
-      const messageWithId = Object.assign({}, message, { id: id });
+      const messageWithId = Object.assign({}, message, {id: id});
       const msg = JSON.stringify(messageWithId);
       ws.send(msg);
     }
@@ -23,24 +24,8 @@ let player; // ourself/client avatar
     delete paddles[playerId];
   };
 
-  // Handling WebSocket open, message, and close events
-  ws.onopen = function() {
-    console.log("WebSocket connection established.");
-  };
-
-  ws.onerror = function(error) {
-    console.error("WebSocket Error:", error);
-  };
-
   ws.onmessage = function(data, flags) {
-    let msg;
-    try {
-      msg = JSON.parse(data.data); // parse the incoming message
-    } catch (e) {
-      console.error("Invalid JSON received:", e);
-      return;
-    }
-
+    const msg = JSON.parse(data.data);
     // console.log('received message:', msg);
 
     const messageHandlers = {
@@ -49,7 +34,7 @@ let player; // ourself/client avatar
       },
       spawnPlayer() {
         const isClient = msg.id === id;
-        const options = { x: msg.x, y: msg.y, color: msg.color, isClient };
+        const options = {x: msg.x, y: msg.y, color: msg.color, isClient};
 
         paddles[msg.id] = createPaddle(game, socket, options);
         if (isClient) {
@@ -110,17 +95,11 @@ let player; // ourself/client avatar
       }
     };
 
-    // Execute the corresponding handler for the message type
-    if (messageHandlers[msg.type]) {
-      messageHandlers[msg.type]();
-    } else {
-      console.warn("Unknown message type:", msg.type);
-    }
+    messageHandlers[msg.type]();
   };
 
   // auto-reconnect if server reboots
   ws.onclose = function() {
-    console.log("WebSocket connection closed. Reconnecting...");
     setTimeout(function() {
       for (let paddle in paddles) {
         destroy(paddle);
