@@ -41,7 +41,7 @@ const createPaddle = function(game, socket, options) {
     });
 
     const moveSpeed = 2;
-    const arrowKeySpeed = 5;
+    const arrowKeySpeed = 10;
     const movePaddleWithKeys = function(event) {
       const maxY = game.offsetHeight - paddle.offsetHeight;
       const currentTop = parseFloat(paddle.style.top);
