@@ -1,4 +1,4 @@
-const createPaddle = function (game, socket, options) {
+const createPaddle = function(game, socket, options) {
   const paddle = document.createElement('div');
   paddle.style.left = options.x + '%';
   paddle.style.top = options.y + '%';
@@ -6,41 +6,25 @@ const createPaddle = function (game, socket, options) {
   paddle.style.backgroundColor = options.color;
   game.appendChild(paddle);
 
+  // add mouse controls if this paddle is the one we (the player) are to control
   if (options.isClient) {
-    let lastSentY = null; // To track the last sent position and avoid redundant updates
-    let throttleTimeout = null; // Throttle sending WebSocket updates
     let startY = 0;
 
-    const updatePaddlePosition = (newY) => {
+    game.addEventListener('mousemove', function movePaddle(event) {
+      let newY = event.clientY - startY;
       const maxY = game.offsetHeight - paddle.offsetHeight;
-      const clampedY = Math.min(Math.max(newY, 0), maxY); // Clamp between 0 and max height
-      paddle.style.top = `${clampedY}px`;
+      newY = newY < 0 ? 0 : newY > maxY ? maxY : newY;
+      paddle.style.top = newY;
 
-      const percent = (clampedY / game.offsetHeight) * 100;
-
-      if (percent !== lastSentY) {
-        lastSentY = percent;
-
-        // Throttle updates to the server
-        if (!throttleTimeout) {
-          throttleTimeout = setTimeout(() => {
-            socket.send({ type: 'movePlayer', y: percent });
-            throttleTimeout = null;
-          }, 50); // Adjust throttle time (in ms) for responsiveness
-        }
+      if (newY === 0) {
+        startY = event.clientY;
+      } else if (newY === maxY) {
+        startY = event.clientY - maxY;
       }
-    };
 
-    game.addEventListener('mousemove', (event) => {
-      const rect = game.getBoundingClientRect();
-      const newY = event.clientY - rect.top;
-      updatePaddlePosition(newY);
-    });
-
-    game.addEventListener('mousedown', (event) => {
-      const rect = game.getBoundingClientRect();
-      startY = event.clientY - rect.top - paddle.offsetHeight / 2;
-      updatePaddlePosition(startY);
+      const percent = (newY / game.offsetHeight) * 100;
+      // TODO: throttle movement!
+      socket.send({type: 'movePlayer', y: percent});
     });
   }
 
