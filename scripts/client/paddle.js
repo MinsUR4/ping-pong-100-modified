@@ -8,33 +8,54 @@ const createPaddle = function(game, socket, options) {
 
   // add mouse controls if this paddle is the one we (the player) are to control
   if (options.isClient) {
-    let startY = 0;
-    let lastSentY = options.y; // Initialize the last sent position
-    const throttleDelay = 50; // Delay in milliseconds
+    let startY = options.y; // Initial paddle position
+    let mouseStartY = 0; // Starting mouse Y position when drag starts
+    let isDragging = false; // Track if we are dragging the paddle
+
+    // Throttle parameters
+    const throttleDelay = 50;
     let lastMoveTime = 0;
 
-    game.addEventListener('mousemove', function movePaddle(event) {
-      const newY = event.clientY - startY;
-      const maxY = game.offsetHeight - paddle.offsetHeight;
-      const boundedY = Math.max(0, Math.min(newY, maxY)); // Clamp to the game bounds
-      paddle.style.top = `${boundedY}px`;
-
-      if (boundedY === 0) {
-        startY = event.clientY;
-      } else if (boundedY === maxY) {
-        startY = event.clientY - maxY;
+    game.addEventListener('mousedown', function(event) {
+      // Check if mouse is over the paddle and start dragging
+      if (event.clientY >= paddle.offsetTop && event.clientY <= paddle.offsetTop + paddle.offsetHeight) {
+        isDragging = true;
+        mouseStartY = event.clientY - paddle.offsetTop; // Record the starting offset
+        game.style.cursor = 'grabbing'; // Change the cursor to indicate dragging
       }
+    });
 
-      const percent = (boundedY / game.offsetHeight) * 100;
+    game.addEventListener('mousemove', function(event) {
+      if (isDragging) {
+        const mouseOffsetY = event.clientY - mouseStartY;
+        const maxY = game.offsetHeight - paddle.offsetHeight;
+        const newY = Math.max(0, Math.min(mouseOffsetY, maxY)); // Clamp to the game bounds
+        paddle.style.top = `${newY}px`;
 
-      // Throttle the sending of paddle movement to the server
-      const now = Date.now();
-      if (now - lastMoveTime >= throttleDelay) {
-        if (Math.abs(lastSentY - percent) >= 0.5) { // Send if the position changed significantly
+        // Send position to the server if the position changed significantly
+        const percent = (newY / game.offsetHeight) * 100;
+
+        const now = Date.now();
+        if (now - lastMoveTime >= throttleDelay) {
           socket.send({ type: 'movePlayer', y: percent });
-          lastSentY = percent;
           lastMoveTime = now;
         }
+      }
+    });
+
+    // Stop dragging when mouse is released
+    game.addEventListener('mouseup', function() {
+      if (isDragging) {
+        isDragging = false;
+        game.style.cursor = 'default'; // Reset cursor
+      }
+    });
+
+    // Optionally, handle mouse out of game area (stop dragging if the mouse leaves)
+    game.addEventListener('mouseleave', function() {
+      if (isDragging) {
+        isDragging = false;
+        game.style.cursor = 'default'; // Reset cursor
       }
     });
   }
