@@ -4,6 +4,7 @@ let player; // ourself/client avatar
 
 (function startGame() {
   const ws = new WebSocket('wss://resilient-synonymous-hat.glitch.me/');
+
   const game = document.querySelector('#game');
   const scoreA = document.querySelector('#a.score');
   const scoreB = document.querySelector('#b.score');
