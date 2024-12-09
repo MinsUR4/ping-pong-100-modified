@@ -1,134 +1,17 @@
-<!DOCTYPE html>
-<html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Ping Pong Game</title>
-    <style>
-        canvas { 
-            display: block; 
-            margin: 0 auto; 
-            background: black; 
-        }
-    </style>
-</head>
-<body>
-    <canvas id="pong" width="800" height="400"></canvas>
-    <script>
-        const canvas = document.getElementById('pong');
-        const context = canvas.getContext('2d');
-
-        // Define the ball and paddle sizes
-        const ballSize = 10;
-        const paddleWidth = 10;
-        const paddleHeight = 100;
-
-        // Initial game state
-        let ball = { x: canvas.width / 2, y: canvas.height / 2, speedX: 4, speedY: 4 };
-        let paddleLeft = { x: 0, y: canvas.height / 2 - paddleHeight / 2, speedY: 0 };
-        let paddleRight = { x: canvas.width - paddleWidth, y: canvas.height / 2 - paddleHeight / 2, speedY: 0 };
-        
-        // WebSocket connection
-        const ws = new WebSocket('wss://resilient-synonymous-hat.glitch.me/');
-
-        ws.onopen = () => {
-            console.log('Connected to server');
-        };
-
-        // Listen for messages from the server
-        ws.onmessage = (event) => {
-            const data = JSON.parse(event.data);
-            if (data.ball) {
-                ball = data.ball;
-            }
-            if (data.paddleLeft) {
-                paddleLeft.y = data.paddleLeft.y;
-            }
-            if (data.paddleRight) {
-                paddleRight.y = data.paddleRight.y;
-            }
-            render();
-        };
-
-        // Send paddle movements to the server
-        window.addEventListener('keydown', (e) => {
-            if (e.key === 'ArrowUp') {
-                paddleRight.speedY = -5;
-            } else if (e.key === 'ArrowDown') {
-                paddleRight.speedY = 5;
-            }
-        });
-
-        window.addEventListener('keyup', (e) => {
-            if (e.key === 'ArrowUp' || e.key === 'ArrowDown') {
-                paddleRight.speedY = 0;
-            }
-        });
-
-        // Update game state
-        function update() {
-            // Move paddles
-            paddleRight.y += paddleRight.speedY;
-            if (paddleRight.y < 0) paddleRight.y = 0;
-            if (paddleRight.y > canvas.height - paddleHeight) paddleRight.y = canvas.height - paddleHeight;
-
-            // Update ball position
-            ball.x += ball.speedX;
-            ball.y += ball.speedY;
-
-            // Ball collision with top/bottom
-            if (ball.y <= 0 || ball.y >= canvas.height) {
-                ball.speedY *= -1;
-            }
-
-            // Ball collision with paddles
-            if (ball.x <= paddleLeft.x + paddleWidth && ball.y >= paddleLeft.y && ball.y <= paddleLeft.y + paddleHeight) {
-                ball.speedX *= -1;
-            }
-
-            if (ball.x >= paddleRight.x - ballSize && ball.y >= paddleRight.y && ball.y <= paddleRight.y + paddleHeight) {
-                ball.speedX *= -1;
-            }
-
-            // Ball out of bounds (score update)
-            if (ball.x <= 0 || ball.x >= canvas.width) {
-                // Reset ball to center
-                ball.x = canvas.width / 2;
-                ball.y = canvas.height / 2;
-            }
-
-            // Send updated positions to the server
-            ws.send(JSON.stringify({
-                ball: ball,
-                paddleLeft: paddleLeft,
-                paddleRight: paddleRight
-            }));
-        }
-
-        // Render game frame
-        function render() {
-            context.clearRect(0, 0, canvas.width, canvas.height);
-            
-            // Draw paddles
-            context.fillStyle = '#fff';
-            context.fillRect(paddleLeft.x, paddleLeft.y, paddleWidth, paddleHeight);
-            context.fillRect(paddleRight.x, paddleRight.y, paddleWidth, paddleHeight);
-            
-            // Draw ball
-            context.beginPath();
-            context.arc(ball.x, ball.y, ballSize, 0, Math.PI * 2);
-            context.fillStyle = '#fff';
-            context.fill();
-        }
-
-        // Game loop
-        function gameLoop() {
-            update();
-            render();
-            requestAnimationFrame(gameLoop);
-        }
-
-        gameLoop();
-    </script>
-</body>
+<html>
+  <head>
+    <link rel="stylesheet" type="text/css" href="styles.css?v=0.0.7"/>
+    <link rel="stylesheet" type="text/css" href="font/small_5x3.css?v=0.0.7"/>
+  </head>
+  <main id="game">
+    <span id="a" class="score blink">00</span>
+    <span id="b" class="score">00</span>
+    <div class="ball"></div>
+  </main>
+  <script src="scripts/utils.js?v=0.0.7"></script>
+  <script src="scripts/client/paddle.js?v=0.0.7"></script>
+  <script src="scripts/client/index.js?v=0.0.7"></script>
+  <audio id="hitSound" src="sounds/blip.webm?v=0.0.7"></audio>
+  <audio id="goalSound" src="sounds/goal.webm?v=0.0.7"></audio>
+  <audio id="winSound" src="sounds/win.webm?v=0.0.7"></audio>
 </html>
