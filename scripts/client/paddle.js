@@ -8,31 +8,24 @@ const createPaddle = function(game, socket, options) {
 
   // add mouse controls if this paddle is the one we (the player) are to control
   if (options.isClient) {
-    let startY = options.y; // Initial paddle position
-    let mouseStartY = 0; // Starting mouse Y position when drag starts
-    let isDragging = false; // Track if we are dragging the paddle
+    let paddleY = options.y; // Initial paddle position
+    let isLocked = false; // Track whether the mouse is "locked" to the paddle
 
     // Throttle parameters
     const throttleDelay = 50;
     let lastMoveTime = 0;
 
-    game.addEventListener('mousedown', function(event) {
-      // Check if mouse is over the paddle and start dragging
-      if (event.clientY >= paddle.offsetTop && event.clientY <= paddle.offsetTop + paddle.offsetHeight) {
-        isDragging = true;
-        mouseStartY = event.clientY - paddle.offsetTop; // Record the starting offset
-        game.style.cursor = 'grabbing'; // Change the cursor to indicate dragging
-      }
-    });
-
+    // Mouse lock logic for moving the paddle smoothly without holding the mouse button
     game.addEventListener('mousemove', function(event) {
-      if (isDragging) {
-        const mouseOffsetY = event.clientY - mouseStartY;
+      // Only move paddle if mouse is within the game area and is "locked"
+      if (isLocked) {
         const maxY = game.offsetHeight - paddle.offsetHeight;
-        const newY = Math.max(0, Math.min(mouseOffsetY, maxY)); // Clamp to the game bounds
+        const mouseY = event.clientY;
+        const newY = Math.max(0, Math.min(mouseY, maxY)); // Clamping the paddle position
+
         paddle.style.top = `${newY}px`;
 
-        // Send position to the server if the position changed significantly
+        // Send position to the server with throttling
         const percent = (newY / game.offsetHeight) * 100;
 
         const now = Date.now();
@@ -43,20 +36,16 @@ const createPaddle = function(game, socket, options) {
       }
     });
 
-    // Stop dragging when mouse is released
-    game.addEventListener('mouseup', function() {
-      if (isDragging) {
-        isDragging = false;
-        game.style.cursor = 'default'; // Reset cursor
-      }
+    // Start "locking" the paddle to mouse when the player moves the mouse over it
+    paddle.addEventListener('mouseenter', function() {
+      isLocked = true;
+      game.style.cursor = 'grab'; // Change cursor to indicate locked state
     });
 
-    // Optionally, handle mouse out of game area (stop dragging if the mouse leaves)
-    game.addEventListener('mouseleave', function() {
-      if (isDragging) {
-        isDragging = false;
-        game.style.cursor = 'default'; // Reset cursor
-      }
+    // Stop locking the paddle when mouse leaves the paddle area
+    paddle.addEventListener('mouseleave', function() {
+      isLocked = false;
+      game.style.cursor = 'default'; // Reset cursor when leaving
     });
   }
 
