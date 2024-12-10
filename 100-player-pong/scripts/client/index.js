@@ -41,7 +41,7 @@ let player; // ourself/client avatar
           player = paddles[msg.id];
         }
       },
-      const movePlayer = (msg) => {
+      movePlayer() {
         if (!paddles[msg.id]) {
           console.warn(`No paddle found for player ID: ${msg.id}`);
           return;
