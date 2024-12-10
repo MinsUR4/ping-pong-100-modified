@@ -1,8 +1,15 @@
-/* control left margin */
+/* Control left margin */
 * {
   -webkit-box-sizing: border-box;
   -moz-box-sizing: border-box;
   box-sizing: border-box;
+}
+
+html, body {
+  margin: 0;
+  padding: 0;
+  height: 100%;
+  overflow: hidden;
 }
 
 html {
@@ -13,20 +20,33 @@ html {
 }
 
 body {
-  margin: 1vw;
   background-color: hsl(302, 10%, 99%);
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  height: 100%;
 }
 
-/* 16:9 */
+/* Full-screen game container */
 #game {
-  width: 98vw; /* 100 - (body margin * 2) */
-  height: 54.25vw; /* 56.25 - (body margin * 2) */
+  width: 100vw;
+  height: 56.25vw; /* 16:9 aspect ratio */
   position: relative;
   background: black;
+  max-height: 100vh;
+  max-width: 177.78vh; /* Keeps aspect ratio at 16:9 */
+}
+
+/* Ensure that game aspect ratio stays consistent */
+@media (max-width: 177.78vh) {
+  #game {
+    width: 100%;
+    height: auto;
+  }
 }
 
 #game:after {
-  content:"";
+  content: "";
   position: absolute;
   top: 0;
   bottom: 0;
@@ -38,7 +58,7 @@ body {
   position: absolute;
   width: 1vw;
   height: 5vw;
-  background: white; /* default color */
+  background: white;
 }
 
 .ball {
@@ -46,7 +66,6 @@ body {
   width: 1vw;
   height: 1vw;
   background: white;
-  /* default position to center court */
   top: 50%;
   left: 50%;
 }
@@ -56,18 +75,20 @@ body {
 }
 
 @keyframes blink {
-  50% { opacity: 0.0; }
+  50% {
+    opacity: 0.0;
+  }
 }
 
 .score {
   font-family: 'Small 5x3 Regular';
-  font-size: 8vw; /* not perfect, but close */
+  font-size: 8vw; /* Dynamic based on viewport width */
   color: white;
   position: absolute;
 }
 
 #a.score {
-  left: 40vw
+  left: 40vw;
 }
 
 #b.score {
