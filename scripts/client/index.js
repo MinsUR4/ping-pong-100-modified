@@ -122,7 +122,7 @@
 
   wsGame.onmessage = function(data) {
     const msg = JSON.parse(data.data);
-    console.log('Received game message:', msg);
+    //console.log('Received game message:', msg);
     handleGameMessage(msg);
   };
 
