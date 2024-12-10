@@ -15,17 +15,10 @@ const createPaddle = function(game, socket, options) {
   playerDisplay.style.textAlign = 'center';
   playerDisplay.style.fontSize = '12px';  // Adjust the font size as needed
   playerDisplay.style.color = 'white'; // Set text color for better visibility
+  
+  // Set the content to show the player's name and paddle color
+  playerDisplay.innerHTML = `${options.playerName} (${options.color})`;
   game.appendChild(playerDisplay);
-
-  // Listen for player name assignment from the WebSocket server
-  socket.onmessage = function(event) {
-    const data = JSON.parse(event.data);
-
-    if (data.type === 'assignPlayer') {
-      // Update the player's name in the display
-      playerDisplay.innerHTML = `${data.playerName} (${options.color})`;
-    }
-  };
 
   // Add mouse controls if this paddle is the one we (the player) are to control
   if (options.isClient) {
