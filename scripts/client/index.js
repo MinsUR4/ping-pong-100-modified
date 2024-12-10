@@ -1,4 +1,6 @@
-function startGame() {
+
+
+(function startGame() {
   const game = document.querySelector('#game');
   const chatBox = document.getElementById('chat-box');
   const chatInput = document.getElementById('chat-input');
@@ -160,4 +162,4 @@ function startGame() {
     }
     return color;
   }
-}
+})();
