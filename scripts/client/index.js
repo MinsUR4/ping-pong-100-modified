@@ -108,3 +108,132 @@ let player; // ourself/client avatar
     }, 3000);
   };
 }());
+
+(function startGame() {
+  const ws = new WebSocket('wss://resilient-synonymous-hat.glitch.me/');
+  const game = document.querySelector('#game');
+  const chatBox = document.getElementById('chat-box');
+  const chatInput = document.getElementById('chat-input');
+  const sendButton = document.getElementById('send-button');
+  const scoreA = document.querySelector('#a.score');
+  const scoreB = document.querySelector('#b.score');
+  const ball = document.querySelector('.ball');
+  let id;
+  let playerName;
+
+  const paddles = {};
+
+  ws.onmessage = function(data) {
+    const msg = JSON.parse(data.data);
+    console.log('received message:', msg);
+
+    // Define messageHandlers to process game-related messages
+    const messageHandlers = {
+      assignPlayer() {
+        // Assign player name when server responds
+        playerName = msg.playerName;
+        console.log(`You are assigned as ${playerName}`);
+      },
+
+      chat() {
+        // Display chat messages in chat box
+        const messageElement = document.createElement('div');
+        messageElement.textContent = msg.message;
+        chatBox.appendChild(messageElement);
+        chatBox.scrollTop = chatBox.scrollHeight;
+      },
+
+      playerJoined() {
+        console.log(`${msg.playerName} has joined the game.`);
+      },
+
+      playerLeft() {
+        console.log(`${msg.playerName} has left the game.`);
+      },
+
+      score() {
+        function updateScore(element, score) {
+          function format(number) {
+            if (number < 10) {
+              return '0' + number;
+            } else {
+              return number;
+            }
+          }
+
+          element.innerHTML = format(score);
+        }
+
+        updateScore(scoreA, msg.score.a);
+        updateScore(scoreB, msg.score.b);
+      },
+
+      id() {
+        id = msg.id;
+      },
+
+      spawnPlayer() {
+        const isClient = msg.id === id;
+        const options = {x: msg.x, y: msg.y, color: msg.color, isClient};
+
+        paddles[msg.id] = createPaddle(game, socket, options);
+        if (isClient) {
+          player = paddles[msg.id];
+        }
+      },
+
+      movePlayer() {
+        // TODO: interpolate movement!
+        if (msg.id !== id) { // ignore this msg if it's us!
+          paddles[msg.id].style.top = msg.y + '%'; // update player position
+        }
+      },
+
+      destroyPlayer() {
+        if (paddles[msg.id]) {
+          destroy(msg.id);
+        }
+      },
+
+      moveBall() {
+        // TODO: interpolate movement!
+        ball.style.left = msg.x + '%';
+        ball.style.top = msg.y + '%';
+      },
+
+      goal() {
+        document.getElementById('goalSound').play();
+      },
+
+      hit() {
+        document.getElementById('hitSound').play();
+      },
+
+      win() {
+        document.getElementById('winSound').play();
+      }
+    };
+
+    // Call the appropriate handler for the received message type
+    if (messageHandlers[msg.type]) {
+      messageHandlers[msg.type]();
+    }
+  };
+
+
+  ws.onclose = function() {
+    setTimeout(startGame, 3000);
+  };
+
+  // Send chat message when the send button is clicked
+  sendButton.addEventListener('click', () => {
+    const message = chatInput.value.trim();
+    if (message) {
+      // Send message to WebSocket server
+      ws.send(JSON.stringify({ type: 'chat', message }));
+      chatInput.value = ''; // Clear input field
+    }
+  });
+
+
+}());
