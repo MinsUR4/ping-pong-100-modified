@@ -125,7 +125,7 @@ let player; // ourself/client avatar
 
   ws.onmessage = function(data) {
     const msg = JSON.parse(data.data);
-    console.log('received message:', msg);
+    //console.log('received message:', msg);
 
     // Define messageHandlers to process game-related messages
     const messageHandlers = {
