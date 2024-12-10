@@ -131,4 +131,5 @@ body {
   font-size: 12px;
   color: white;
   text-align: center;
+  z-index: 10;
 }
