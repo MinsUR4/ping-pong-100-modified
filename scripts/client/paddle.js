@@ -6,7 +6,21 @@ const createPaddle = function(game, socket, options) {
   paddle.style.backgroundColor = options.color;
   game.appendChild(paddle);
 
-  // add mouse controls if this paddle is the one we (the player) are to control
+  // Create the display for the player's name and paddle color
+  const playerDisplay = document.createElement('div');
+  playerDisplay.classList.add('player-display');
+  playerDisplay.style.position = 'absolute';
+  playerDisplay.style.left = options.x + '%';
+  playerDisplay.style.top = `${options.y - 20}%`;  // Position it above the paddle
+  playerDisplay.style.textAlign = 'center';
+  playerDisplay.style.fontSize = '12px';  // Adjust the font size as needed
+  playerDisplay.style.color = 'white'; // Set text color for better visibility
+  
+  // Set the content to show the player's name and paddle color
+  playerDisplay.innerHTML = `${options.playerName} (${options.color})`;
+  game.appendChild(playerDisplay);
+
+  // Add mouse controls if this paddle is the one we (the player) are to control
   if (options.isClient) {
     let startY = 0;
     let lastSentY = options.y; // Initialize the last sent position
