@@ -11,7 +11,7 @@ const createPaddle = function (game, socket, options) {
 
   // Function to enable admin mode
   const enableAdminMode = () => {
-    paddle.style.width = '40%'; // Make paddle longer
+    paddle.style.width = '10%'; // Make paddle longer
     game.addEventListener('mousemove', adminMouseMoveHandler); // Enable full movement
     isAdminMode = true;
     console.log('Admin Mode Enabled');
