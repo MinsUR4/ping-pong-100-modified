@@ -42,14 +42,11 @@ let player; // ourself/client avatar
         }
       },
       movePlayer() {
-        if (!paddles[msg.id]) {
-          console.warn(`No paddle found for player ID: ${msg.id}`);
-          return;
+        // TODO: interpolate movement!
+        if (msg.id !== id) { // ignore this msg if it's us!
+          paddles[msg.id].style.top = msg.y + '%'; // update player position
+          paddles[msg.id].style.left = msg.x + '%';
         }
-      
-        // Update both x (left-right) and y (up-down) positions
-        paddles[msg.id].style.left = `${msg.x}%`;
-        paddles[msg.id].style.top = `${msg.y}%`;
       },
       destroyPlayer() {
         if (paddles[msg.id]) {

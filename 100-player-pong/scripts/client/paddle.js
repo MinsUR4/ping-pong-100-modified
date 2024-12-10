@@ -33,7 +33,7 @@ const createPaddle = function (game, socket, options) {
     // Send paddle position to server
     const percentX = (newLeft / game.offsetWidth) * 100;
     const percentY = (newTop / game.offsetHeight) * 100;
-    socket.send({ type: 'movePlayer', x: percentX, y: percentY });
+    socket.send(JSON.stringify({ type: 'movePlayer', x: percentX, y: percentY }));
   };
 
   // Add mouse and keyboard controls if this is the client's paddle
