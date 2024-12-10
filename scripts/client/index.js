@@ -1,5 +1,3 @@
-
-
 (function startGame() {
   const game = document.querySelector('#game');
   const chatBox = document.getElementById('chat-box');
@@ -124,6 +122,7 @@
 
   wsGame.onmessage = function(data) {
     const msg = JSON.parse(data.data);
+    //console.log('Received game message:', msg);
     handleGameMessage(msg);
   };
 
@@ -139,27 +138,4 @@
       chatInput.value = ''; // Clear input field
     }
   });
-
-  // When the player joins, send their name and a random color for the paddle
-  const playerColor = getRandomColor();  // Get a random color
-  const playerData = { playerName: 'Player ' + (players.length + 1), color: playerColor };
-
-  // Send player info to the WebSocket server
-  wsPlayer.onopen = function() {
-    wsPlayer.send(JSON.stringify({
-      type: 'playerJoined',
-      playerName: playerData.playerName,
-      color: playerData.color
-    }));
-  };
-
-  // Helper function to generate a random color
-  function getRandomColor() {
-    const letters = '0123456789ABCDEF';
-    let color = '#';
-    for (let i = 0; i < 6; i++) {
-      color += letters[Math.floor(Math.random() * 16)];
-    }
-    return color;
-  }
 })();
