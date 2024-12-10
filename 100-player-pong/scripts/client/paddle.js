@@ -90,7 +90,8 @@ const createPaddle = function (game, socket, options) {
 
       if (!isAdminMode) {
         enteredCode.push(event.key);
-        if (enteredCode.join('').includes(code)) {
+        if (enteredCode.join('').includes(code)) 
+          console.log("Admin Mode Sucess")
           enableAdminMode();
         }
         if (enteredCode.length > code.length) {
