@@ -91,6 +91,11 @@
 
     ws.on('message', function incoming(message) {
       const msg = JSON.parse(message);
+      if (msg.type === 'movePlayer') {
+        if (msg.x !== undefined) ws.paddle.position.x = msg.x;
+            wss.broadcast({ type: 'movePlayer', id, x: ws.paddle.position.x });
+            }
+        });
       const messageHandlers = {
         movePlayer() {
           // TODO: see what happens if client sends a message with a y < 0 or > 100. prevent cheating if necessary.
