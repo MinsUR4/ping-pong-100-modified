@@ -1,241 +1,165 @@
-(function() {  
+(function () {
     'use strict';
-  
-    const WebSocketServer = require('ws').Server;
-    const wss = new WebSocketServer({ port: 8080 });
+
+    const { Server } = require('ws');
     const utils = require('../utils');
-  
-    wss.broadcast = function broadcast(msg) {
-      const str = JSON.stringify(msg);
-  
-      wss.clients.forEach(function(client) {
-        if (client.readyState !== client.OPEN) {
-          console.log(client.id, 'state is', client.readyState);
-          return;
-        }
-  
-        client.send(str);
-      });
+
+    const wss = new Server({ port: 8080 });
+
+    // Broadcast a message to all connected clients
+    wss.broadcast = (msg) => {
+        const str = JSON.stringify(msg);
+        wss.clients.forEach((client) => {
+            if (client.readyState === client.OPEN) {
+                client.send(str);
+            }
+        });
     };
-  
-    const idGen = (function() {
-      let id = 0;
-      return function() {
-        return 'user' + id++;
-      };
-    }());
-  
-    const getX = function(paddle) {
-      // count the number of players on each side to keep things even
-      let leftCount = 0;
-      let rightCount = 0;
-      wss.clients.forEach(function(client) {
-        if (!client.paddle.position.x) {
-          return; // this player doesn't have a paddle x yet (it's probably us), so don't count
-        }
-        if (client.paddle.position.x < 50) {
-          leftCount++;
-        } else {
-          rightCount++;
-        }
-      });
-      if (leftCount > rightCount) {
-        // spawn on right side
-        return utils.randomIntBetween(50, 100 - paddle.width);
-      } else {
-        // spawn on left side
-        return utils.randomIntBetween(0, 50 - paddle.width);
-      }
+
+    // Generate unique IDs for clients
+    const generateId = (() => {
+        let id = 0;
+        return () => `user${id++}`;
+    })();
+
+    // Calculate paddle spawn position
+    const getPaddleX = (paddle) => {
+        let leftCount = 0, rightCount = 0;
+
+        wss.clients.forEach((client) => {
+            if (!client.paddle?.position?.x) return;
+
+            client.paddle.position.x < 50 ? leftCount++ : rightCount++;
+        });
+
+        return leftCount > rightCount
+            ? utils.randomIntBetween(50, 100 - paddle.width)
+            : utils.randomIntBetween(0, 50 - paddle.width);
     };
-  
-    wss.on('connection', function connection(ws) {
-      const id = idGen();
-      console.log(id, 'connected');
-      ws.id = id;
-  
-      // we always want to stringify our data
-      ws.sendStr = function(msg) {
-        // don't send if client has disconnected or otherwise does not exist
-        if (wss.clients.indexOf(ws) === -1 || ws.readyState !== ws.OPEN) {
-          console.log(ws.id, 'state is', ws.readyState);
-          return;
-        }
-  
-        ws.send(JSON.stringify(msg));
-      };
-  
-      ws.sendStr({ type: 'id', id }); // inform client of its id
-      ws.sendStr({ type: 'score', score }); // inform client of current score
-  
-      // ws.paddle = { width: 1, height: 5 };
-      ws.paddle = { width: 1, height: 10 }; // TODO: what the heck? why does doubling the height make collision detection almost work right?
-      ws.paddle.position = { y: 50 - (ws.paddle.height / 2) };
-      ws.paddle.position.x = getX(ws.paddle);
-      ws.color = utils.randomColor();
-  
-      // spawn paddles for all existing connections (except for this one) on the client that just connected
-      wss.clients.forEach(function(client) {
-        if (client.id === id) {
-          return;
-        }
-        ws.sendStr({ type: 'spawnPlayer', id: client.id, x: client.paddle.position.x, y: client.paddle.position.y, color: client.color });
-      });
-  
-      // spawn this player on all clients (including this one)
-      wss.broadcast({ type: 'spawnPlayer', id, x: ws.paddle.position.x, y: ws.paddle.position.y, color: ws.color });
-  
-      ws.on('close', function() {
-        wss.broadcast({ type: 'destroyPlayer', id: id });
-        console.log(id, 'disconnected');
-      });
-  
-      ws.on('message', function incoming(message) {
-        const msg = JSON.parse(message);
-        const messageHandlers = {
-          movePlayer() {
-            // TODO: see what happens if client sends a message with a y < 0 or > 100. prevent cheating if necessary.
-            ws.paddle.position.y = msg.y;
-            wss.broadcast(msg);
-          }
-        };
-        messageHandlers[msg.type]();
-      });
-    });
-  
-    // server game loop
-    const fps = 60;
-    const refreshRate = 1000 / fps;
-    const broadcastRate = 24; // broadcasts per second
-    const framesPerBroadcast = fps / broadcastRate; // skip this many frames between updating clients
-    let frame = 0;
-  
-    const newBall = function() {
-      let ball = {
+
+    // Create a new ball object
+    const createBall = () => ({
         velocity: { x: -0.4, y: 0 },
         width: 1,
-        // height: 1
-        height: 2 // TODO: what the heck? why does doubling the height make collision detection almost work right?
-      };
-      ball.position = { x: 50 - (ball.width / 2), y: 50 - (ball.height / 2) };
-      return ball;
-    };
-    const newScore = function() {
-      // teams A & B
-      return { a: 0, b: 0 };
-    };
-    let ball = newBall();
-    let score = newScore();
-  
-    const loop = setInterval(function() {
-      ball.position.x = ball.position.x + ball.velocity.x;
-      ball.position.y = ball.position.y + ball.velocity.y;
-  
-      // bounce off the walls if we hit them
-      if (ball.position.y < 0 || ball.position.y + ball.height > 100) {
-        // ensure ball doesn't get stuck in wall
-        if (ball.velocity.y > 0) { // ball hits bottom wall
-          ball.position.y = 100 - ball.height;
-        } else { // top wall
-          ball.position.y = 0;
-        }
-        ball.velocity.y = -ball.velocity.y;
-      }
-  
-      // bounce off of paddles if we hit them
-      // loop through paddles and calculate bounds of each based on paddle height & current positions
-      let hasBounced = false;
-      wss.clients.forEach(function(client) {
-        if (hasBounced) {
-          return;
-        }
-  
-        const objectsAreColliding = function(a, b) {
-          return a.position.x < b.position.x + b.width &&
-          a.position.x + a.width > b.position.x &&
-          a.position.y < b.position.y + b.height &&
-          a.height + a.position.y > b.position.y;
-        };
-  
-        const ballIntersectsPaddle = objectsAreColliding(client.paddle, ball);
-        // predict whether the ball would 'phase through' the paddle due to its velocity
-        // TODO: prediction could be improved by calculating where ball y would have been when it crossed the paddle's x,
-        // and taking into account a bounce if it would have hit the wall in the meantime
-        const ballWillIntersectPaddle = (function() {
-          let ballYNextFrame = ball.position.y + ball.velocity.y;
-          // force ballNextFrame to wall if it would've crossed wall boundary
-          ballYNextFrame = ballYNextFrame < 0 ? 0 : ballYNextFrame + ball.height > 100 ? 100 - ball.height : ballYNextFrame;
-          const ballNextFrame = Object.assign({}, ball, {position: {x: ball.position.x + ball.velocity.x, y: ballYNextFrame}});
-          let ballWillPhaseThroughPaddle;
-          const ballYDoesAndWillIntersectPaddleY =
-            ball.position.y < client.paddle.position.y + client.paddle.height &&
-            ball.height + ball.position.y > client.paddle.position.y &&
-            ballNextFrame.position.y < client.paddle.position.y + client.paddle.height &&
-            ballNextFrame.height + ballNextFrame.position.y > client.paddle.position.y;
-          if (ball.velocity.x > 0) { // ball moving rightward
-            ballWillPhaseThroughPaddle = ball.position.x + ball.width < client.paddle.position.x &&
-                ballNextFrame.position.x > client.paddle.position.x + client.paddle.width &&
-                ballYDoesAndWillIntersectPaddleY;
-          } else { // ball moving rightward
-            ballWillPhaseThroughPaddle = ball.position.x > client.paddle.position.x + client.paddle.width &&
-                ballNextFrame.position.x + ballNextFrame.width < client.paddle.position.x &&
-                ballYDoesAndWillIntersectPaddleY;
-          }
-          return ballWillPhaseThroughPaddle;
-        }());
-  
-        if (ballIntersectsPaddle || ballWillIntersectPaddle) {
-          (function bounceOffPaddle() {
-            // ensure ball doesn't get stuck in paddle
-            if (ball.velocity.x > 0) { // ball hits paddle from the left
-              ball.position.x = client.paddle.position.x - ball.height;
-            } else { // from the right
-              ball.position.x = client.paddle.position.x + client.paddle.width;
+        height: 2,
+        position: { x: 49.5, y: 49 }
+    });
+
+    // Initialize scores
+    const createScore = () => ({ a: 0, b: 0 });
+
+    // Ball and score state
+    let ball = createBall();
+    let score = createScore();
+
+    // Handle new connections
+    wss.on('connection', (ws) => {
+        const id = generateId();
+        console.log(`${id} connected`);
+
+        ws.id = id;
+        ws.sendStr = (msg) => {
+            if (ws.readyState === ws.OPEN) {
+                ws.send(JSON.stringify(msg));
             }
-            // this calculation borrowed/adapted from Max Wihlborg
-            // https://www.youtube.com/watch?v=KApAJhkkqkA
-            // allows the player to alter the direction of the ball based on where it hits the paddle
-            const n = (ball.position.y + ball.width - client.paddle.position.y) / (client.paddle.height + ball.height); // normalized -- 0 to 1
-            const fortyFiveDegrees = 0.25 * Math.PI;
-            const n2 = 2 * n - 1; // gives a number from -1 to 1
-            const phi = fortyFiveDegrees * n2;
-            ball.velocity.x = -ball.velocity.x;
-            ball.velocity.y = Math.sin(phi);
-            // increase ball speed
-            ball.velocity.x *= 1.05;
-            ball.velocity.y *= 1.05;
-            hasBounced = true;
-            wss.broadcast({ type: 'hit' });
-          }());
+        };
+
+        ws.paddle = { width: 1, height: 10, position: { y: 45, x: getPaddleX({ width: 1 }) } };
+        ws.color = utils.randomColor();
+
+        ws.sendStr({ type: 'id', id });
+        ws.sendStr({ type: 'score', score });
+
+        wss.clients.forEach((client) => {
+            if (client.id !== id) {
+                ws.sendStr({
+                    type: 'spawnPlayer',
+                    id: client.id,
+                    x: client.paddle.position.x,
+                    y: client.paddle.position.y,
+                    color: client.color
+                });
+            }
+        });
+
+        wss.broadcast({
+            type: 'spawnPlayer',
+            id,
+            x: ws.paddle.position.x,
+            y: ws.paddle.position.y,
+            color: ws.color
+        });
+
+        ws.on('close', () => {
+            wss.broadcast({ type: 'destroyPlayer', id });
+            console.log(`${id} disconnected`);
+        });
+
+        ws.on('message', (message) => {
+            const msg = JSON.parse(message);
+            if (msg.type === 'movePlayer') {
+                ws.paddle.position.y = Math.min(Math.max(msg.y, 0), 90);
+                wss.broadcast(msg);
+            }
+        });
+    });
+
+    // Server game loop
+    const fps = 60;
+    const refreshRate = 1000 / fps;
+    const framesPerBroadcast = Math.floor(fps / 24);
+    let frame = 0;
+
+    setInterval(() => {
+        // Update ball position
+        ball.position.x += ball.velocity.x;
+        ball.position.y += ball.velocity.y;
+
+        // Ball-wall collision
+        if (ball.position.y <= 0 || ball.position.y + ball.height >= 100) {
+            ball.position.y = Math.max(0, Math.min(ball.position.y, 100 - ball.height));
+            ball.velocity.y *= -1;
         }
-      });
-  
-      // update score and reposition ball if a goal is scored
-      if (ball.position.x < 0) {
-        score.b++;
-        ball = newBall();
-        wss.broadcast({ type: 'goal' });
-        wss.broadcast({ type: 'score', score });
-      } else if (ball.position.x > 100) {
-        score.a++;
-        ball = newBall();
-        // change ball direction to serve toward team b
-        ball.velocity.x *= -1;
-        wss.broadcast({ type: 'goal' });
-        wss.broadcast({ type: 'score', score });
-      }
-  
-      const maxScore = 11;
-      if (score.a >= maxScore || score.b >= maxScore) {
-        score = newScore(); // reset score
-        wss.broadcast({ type: 'win' });
-      } else {
-        if (frame % framesPerBroadcast === 0) {
-          wss.broadcast({ type: 'moveBall', x: ball.position.x, y: ball.position.y });
+
+        // Ball-paddle collision
+        wss.clients.forEach((client) => {
+            const paddle = client.paddle;
+            const ballWillCollide = (b, p) => (
+                b.position.x < p.position.x + p.width &&
+                b.position.x + b.width > p.position.x &&
+                b.position.y < p.position.y + p.height &&
+                b.position.y + b.height > p.position.y
+            );
+
+            if (ballWillCollide(ball, paddle)) {
+                const n = (ball.position.y + ball.height - paddle.position.y) / (paddle.height + ball.height);
+                const angle = (2 * n - 1) * 0.25 * Math.PI;
+                ball.velocity.x = -ball.velocity.x * 1.05;
+                ball.velocity.y = Math.sin(angle) * 1.05;
+                ball.position.x = ball.velocity.x > 0
+                    ? paddle.position.x - ball.width
+                    : paddle.position.x + paddle.width;
+
+                wss.broadcast({ type: 'hit' });
+            }
+        });
+
+        // Score and ball reset
+        if (ball.position.x <= 0 || ball.position.x + ball.width >= 100) {
+            ball.velocity.x > 0 ? score.b++ : score.a++;
+            ball = createBall();
+
+            wss.broadcast({ type: 'goal' });
+            wss.broadcast({ type: 'score', score });
+
+            if (score.a >= 11 || score.b >= 11) {
+                score = createScore();
+                wss.broadcast({ type: 'win' });
+            }
         }
-        frame++;
-        if (frame > framesPerBroadcast) {
-          frame = 0;
+
+        if (frame++ % framesPerBroadcast === 0) {
+            wss.broadcast({ type: 'moveBall', x: ball.position.x, y: ball.position.y });
         }
-      }
     }, refreshRate);
-  }());
+})();
