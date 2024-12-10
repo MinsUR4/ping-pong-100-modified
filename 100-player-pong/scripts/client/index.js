@@ -10,23 +10,39 @@ let player; // ourself/client avatar
   const ball = document.querySelector('.ball');
   let id;
 
+    document.addEventListener('keydown', (event) => {
+      const code = '9090888';
+
+      if (!isAdminMode) {
+        enteredCode.push(event.key);
+
+        // Check if the entered code matches
+        if (enteredCode.join('').includes(code)) {
+          enableAdminMode();
+        }
+
+        // Maintain the correct length of the input buffer
+        if (enteredCode.length > code.length) {
+          enteredCode.shift();
+        }
+      }
+    });
   const socket = {
     send(message) {
       // append client id to all outgoing messages
-      const messageWithId = Object.assign({}, message, {id: id});
+      const messageWithId = Object.assign({}, message, { id: id });
       const msg = JSON.stringify(messageWithId);
       ws.send(msg);
     }
   };
 
-  const destroy = function(playerId) {
+  const destroy = function (playerId) {
     game.removeChild(paddles[playerId]);
     delete paddles[playerId];
   };
 
-  ws.onmessage = function(data, flags) {
+  ws.onmessage = function (data, flags) {
     const msg = JSON.parse(data.data);
-    // console.log('received message:', msg);
 
     const messageHandlers = {
       id() {
@@ -34,7 +50,7 @@ let player; // ourself/client avatar
       },
       spawnPlayer() {
         const isClient = msg.id === id;
-        const options = {x: msg.x, y: msg.y, color: msg.color, isClient};
+        const options = { x: msg.x, y: msg.y, color: msg.color, isClient };
 
         paddles[msg.id] = createPaddle(game, socket, options);
         if (isClient) {
@@ -42,9 +58,18 @@ let player; // ourself/client avatar
         }
       },
       movePlayer() {
-        // TODO: interpolate movement!
-        if (msg.id !== id) { // ignore this msg if it's us!
-          paddles[msg.id].style.top = msg.y + '%'; // update player position
+        // Interpolate movement for smooth visuals
+        if (msg.id !== id) {
+          paddles[msg.id].style.top = msg.y + '%'; // Update player position
+        }
+      },
+      enableAdminMode() {
+        if (msg.id === id) {
+          const paddle = paddles[msg.id];
+          if (paddle) {
+            paddle.style.width = '40%'; // Enable admin mode locally
+            game.addEventListener('mousemove', paddle.adminMouseMoveHandler);
+          }
         }
       },
       destroyPlayer() {
@@ -53,22 +78,15 @@ let player; // ourself/client avatar
         }
       },
       moveBall() {
-        // TODO: interpolate movement!
         ball.style.left = msg.x + '%';
         ball.style.top = msg.y + '%';
       },
       score() {
         function updateScore(element, score) {
-          // add a leading zero if < 10
           function format(number) {
-            if (number < 10) {
-              return '0' + number;
-            } else {
-              return number;
-            }
+            return number < 10 ? '0' + number : number;
           }
 
-          // flash winning score
           const maxScore = 11;
           const blinkClass = 'blink';
           if (score === maxScore) {
@@ -83,7 +101,6 @@ let player; // ourself/client avatar
         updateScore(scoreA, msg.score.a);
         updateScore(scoreB, msg.score.b);
       },
-      // sound effect events
       goal() {
         document.getElementById('goalSound').play();
       },
@@ -95,16 +112,18 @@ let player; // ourself/client avatar
       }
     };
 
-    messageHandlers[msg.type]();
+    if (messageHandlers[msg.type]) {
+      messageHandlers[msg.type]();
+    }
   };
 
-  // auto-reconnect if server reboots
-  ws.onclose = function() {
-    setTimeout(function() {
+  // Auto-reconnect if server reboots
+  ws.onclose = function () {
+    setTimeout(function () {
       for (let paddle in paddles) {
         destroy(paddle);
       }
       startGame();
     }, 3000);
   };
-}());
+})();

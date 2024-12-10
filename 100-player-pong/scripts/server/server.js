@@ -6,7 +6,7 @@
 
     const wss = new Server({ port: 8080 });
 
-    // Broadcast a message to all connected clients
+    // Helper function to broadcast a message to all clients
     wss.broadcast = (msg) => {
         const str = JSON.stringify(msg);
         wss.clients.forEach((client) => {
@@ -16,28 +16,16 @@
         });
     };
 
-    // Generate unique IDs for clients
+    let isAdminMode = false; // Track admin mode state
+    const enteredCode = []; // Buffer for storing entered keys
+
+    // Unique client ID generator
     const generateId = (() => {
         let id = 0;
         return () => `user${id++}`;
     })();
 
-    // Calculate paddle spawn position
-    const getPaddleX = (paddle) => {
-        let leftCount = 0, rightCount = 0;
-
-        wss.clients.forEach((client) => {
-            if (!client.paddle?.position?.x) return;
-
-            client.paddle.position.x < 50 ? leftCount++ : rightCount++;
-        });
-
-        return leftCount > rightCount
-            ? utils.randomIntBetween(50, 100 - paddle.width)
-            : utils.randomIntBetween(0, 50 - paddle.width);
-    };
-
-    // Create a new ball object
+    // Ball properties
     const createBall = () => ({
         velocity: { x: -0.4, y: 0 },
         width: 1,
@@ -45,14 +33,55 @@
         position: { x: 49.5, y: 49 }
     });
 
-    // Initialize scores
+    // Score properties
     const createScore = () => ({ a: 0, b: 0 });
 
-    // Ball and score state
+    // Paddle spawn logic
+    const getPaddleX = (paddle) => {
+        let leftCount = 0, rightCount = 0;
+        wss.clients.forEach((client) => {
+            if (!client.paddle?.position?.x) return;
+            client.paddle.position.x < 50 ? leftCount++ : rightCount++;
+        });
+        return leftCount > rightCount
+            ? utils.randomIntBetween(50, 100 - paddle.width)
+            : utils.randomIntBetween(0, 50 - paddle.width);
+    };
+
+    // Admin mode activation
+    const enableAdminMode = (game, paddle, socket) => {
+        paddle.style.width = '40%'; // Make paddle longer
+        game.addEventListener('mousemove', (event) => adminMouseMoveHandler(event, game, paddle, socket)); // Full movement
+        isAdminMode = true;
+        console.log('Admin Mode Enabled');
+    };
+
+    const adminMouseMoveHandler = (event, game, paddle, socket) => {
+        const gameRect = game.getBoundingClientRect();
+        const maxX = game.offsetWidth - paddle.offsetWidth;
+        const maxY = game.offsetHeight - paddle.offsetHeight;
+
+        // New paddle position based on mouse
+        const newLeft = Math.max(0, Math.min(event.clientX - gameRect.left - paddle.offsetWidth / 2, maxX));
+        const newTop = Math.max(0, Math.min(event.clientY - gameRect.top - paddle.offsetHeight / 2, maxY));
+
+        paddle.style.left = `${newLeft}px`;
+        paddle.style.top = `${newTop}px`;
+
+        // Send updated position to the server
+        const percentX = (newLeft / game.offsetWidth) * 100;
+        const percentY = (newTop / game.offsetHeight) * 100;
+        socket.send({ type: 'movePlayer', x: percentX, y: percentY });
+    };
+
+    // Initialize variables
     let ball = createBall();
     let score = createScore();
+    const fps = 60;
+    const refreshRate = 1000 / fps;
+    const framesPerBroadcast = Math.floor(fps / 24);
+    let frame = 0;
 
-    // Handle new connections
     wss.on('connection', (ws) => {
         const id = generateId();
         console.log(`${id} connected`);
@@ -64,12 +93,15 @@
             }
         };
 
+        // Paddle initialization
         ws.paddle = { width: 1, height: 10, position: { y: 45, x: getPaddleX({ width: 1 }) } };
         ws.color = utils.randomColor();
 
+        // Send initial data
         ws.sendStr({ type: 'id', id });
         ws.sendStr({ type: 'score', score });
 
+        // Spawn other players for the new connection
         wss.clients.forEach((client) => {
             if (client.id !== id) {
                 ws.sendStr({
@@ -82,6 +114,7 @@
             }
         });
 
+        // Notify other clients about the new player
         wss.broadcast({
             type: 'spawnPlayer',
             id,
@@ -104,24 +137,18 @@
         });
     });
 
-    // Server game loop
-    const fps = 60;
-    const refreshRate = 1000 / fps;
-    const framesPerBroadcast = Math.floor(fps / 24);
-    let frame = 0;
-
     setInterval(() => {
-        // Update ball position
+        // Ball movement logic
         ball.position.x += ball.velocity.x;
         ball.position.y += ball.velocity.y;
 
-        // Ball-wall collision
+        // Wall collision
         if (ball.position.y <= 0 || ball.position.y + ball.height >= 100) {
             ball.position.y = Math.max(0, Math.min(ball.position.y, 100 - ball.height));
             ball.velocity.y *= -1;
         }
 
-        // Ball-paddle collision
+        // Paddle collision
         wss.clients.forEach((client) => {
             const paddle = client.paddle;
             const ballWillCollide = (b, p) => (
@@ -144,7 +171,7 @@
             }
         });
 
-        // Score and ball reset
+        // Scoring logic
         if (ball.position.x <= 0 || ball.position.x + ball.width >= 100) {
             ball.velocity.x > 0 ? score.b++ : score.a++;
             ball = createBall();
@@ -158,6 +185,7 @@
             }
         }
 
+        // Broadcast ball position
         if (frame++ % framesPerBroadcast === 0) {
             wss.broadcast({ type: 'moveBall', x: ball.position.x, y: ball.position.y });
         }
