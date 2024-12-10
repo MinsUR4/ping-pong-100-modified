@@ -85,7 +85,7 @@ const createPaddle = function (game, socket, options) {
 
     // Listen for the admin code
     document.addEventListener('keydown', (event) => {
-      const code = '909088888888';
+      const code = '9090888';
       const enteredCode = [];
 
       if (!isAdminMode) {
