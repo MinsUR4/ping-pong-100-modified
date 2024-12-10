@@ -7,12 +7,14 @@ const createPaddle = function (game, socket, options) {
   game.appendChild(paddle);
 
   let isAdminMode = false; // Track if admin mode is active
+  const enteredCode = []; // Buffer for storing entered keys
 
   // Function to enable admin mode
   const enableAdminMode = () => {
     paddle.style.width = '40%'; // Make paddle longer
     game.addEventListener('mousemove', adminMouseMoveHandler); // Enable full movement
     isAdminMode = true;
+    console.log('Admin Mode Enabled');
   };
 
   // Function to handle mouse movement in admin mode
@@ -86,16 +88,18 @@ const createPaddle = function (game, socket, options) {
     // Listen for the admin code
     document.addEventListener('keydown', (event) => {
       const code = '9090888';
-      const enteredCode = [];
 
       if (!isAdminMode) {
         enteredCode.push(event.key);
-        if (enteredCode.join('').includes(code)) 
-          console.log("Admin Mode Sucess");
+
+        // Check if the entered code matches
+        if (enteredCode.join('').includes(code)) {
           enableAdminMode();
         }
+
+        // Maintain the correct length of the input buffer
         if (enteredCode.length > code.length) {
-          enteredCode.shift(); // Maintain the correct length of the input buffer
+          enteredCode.shift();
         }
       }
     });
