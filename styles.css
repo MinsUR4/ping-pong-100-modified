@@ -73,3 +73,51 @@ body {
 #b.score {
   left: 51.6vw;
 }
+
+/* Chatbox Styling */
+#chat-container {
+  position: absolute;
+  top: 5vh;
+  left: 5vw;
+  width: 20vw;
+  max-height: 30vh;
+  background-color: rgba(0, 0, 0, 0.5);
+  color: white;
+  padding: 1vw;
+  border-radius: 10px;
+  display: flex;
+  flex-direction: column;
+  gap: 1vh;
+  box-sizing: border-box;
+}
+
+#chat-box {
+  flex-grow: 1;
+  overflow-y: auto;
+  max-height: 25vh;
+}
+
+#chat-input {
+  padding: 0.5vw;
+  font-size: 1rem;
+  border-radius: 5px;
+  border: none;
+  margin-top: 1vh;
+  width: 100%;
+}
+
+#send-button {
+  padding: 0.5vw;
+  font-size: 1rem;
+  border-radius: 5px;
+  background-color: #007bff;
+  color: white;
+  border: none;
+  cursor: pointer;
+  margin-top: 0.5vh;
+}
+
+#send-button:hover {
+  background-color: #0056b3;
+}
+
