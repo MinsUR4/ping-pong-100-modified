@@ -95,6 +95,7 @@
         movePlayer() {
           // TODO: see what happens if client sends a message with a y < 0 or > 100. prevent cheating if necessary.
           ws.paddle.position.y = msg.y;
+          ws.paddle.position.x = msg.x;
           wss.broadcast(msg);
         }
       };
